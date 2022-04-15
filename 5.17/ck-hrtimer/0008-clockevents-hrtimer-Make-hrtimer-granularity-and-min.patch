@@ -1,4 +1,4 @@
-From 9e1e3cf8b54fd62feac6be75c3ea99abbb64c76c Mon Sep 17 00:00:00 2001
+From a044395656f6726711f48944c536c30c5187b852 Mon Sep 17 00:00:00 2001
 From: graysky <graysky@archlinux.us>
 Date: Sun, 3 Apr 2022 07:22:20 -0400
 Subject: [PATCH 8/8] clockevents, hrtimer: Make hrtimer granularity and
@@ -12,14 +12,14 @@ Subject: [PATCH 8/8] clockevents, hrtimer: Make hrtimer granularity and
  3 files changed, 68 insertions(+), 5 deletions(-)
 
 diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index 830aaf8ca08e..48ff18aa44c0 100644
+index 830aaf8ca08e..86b4109ba622 100644
 --- a/kernel/sysctl.c
 +++ b/kernel/sysctl.c
 @@ -95,6 +95,9 @@
  #if defined(CONFIG_SYSCTL)
  
  /* Constants used for minimum and  maximum */
-+static const int ten_thousand = 10000;
++static int ten_thousand = 10000;
 +extern int hrtimer_granularity_us;
 +extern int hrtimeout_min_us;
  
@@ -143,5 +143,5 @@ index c71894647aed..115cfff08bfb 100644
  
  EXPORT_SYMBOL(schedule_min_hrtimeout);
 -- 
-2.35.1
+2.35.2
 
