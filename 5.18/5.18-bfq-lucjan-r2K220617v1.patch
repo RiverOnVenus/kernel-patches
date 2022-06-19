@@ -208,7 +208,7 @@ index 09574af83..7997cd0c0 100644
  
  	__bfq_deactivate_entity(entity, false);
 diff --git a/block/bfq-iosched.c b/block/bfq-iosched.c
-index bf5acd8f4..c88bb560d 100644
+index bf5acd8f4..dd884b705 100644
 --- a/block/bfq-iosched.c
 +++ b/block/bfq-iosched.c
 @@ -374,7 +374,7 @@ static const unsigned long bfq_activation_stable_merging = 600;
@@ -234,7 +234,7 @@ index bf5acd8f4..c88bb560d 100644
   * 1) all active queues have the same weight,
   * 2) all active queues belong to the same I/O-priority class,
 - * 3) there are no active groups.
-+ * 3) there are is at most one active group.
++ * 3) there is at most one active group.
   * In particular, the last condition is always true if hierarchical
   * support or the cgroups interface are not enabled, thus no state
   * needs to be maintained in this case.
@@ -491,7 +491,15 @@ index bf5acd8f4..c88bb560d 100644
  	/* release oom-queue reference to root group */
  	bfqg_and_blkg_put(bfqd->root_group);
  
-@@ -7082,28 +7023,6 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
+@@ -7041,6 +6982,7 @@ static void bfq_exit_queue(struct elevator_queue *e)
+ 	spin_unlock_irq(&bfqd->lock);
+ #endif
+ 
++	blk_stat_disable_accounting(bfqd->queue);
+ 	wbt_enable_default(bfqd->queue);
+ 
+ 	kfree(bfqd);
+@@ -7082,28 +7024,6 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
  	q->elevator = eq;
  	spin_unlock_irq(&q->queue_lock);
  
@@ -520,7 +528,7 @@ index bf5acd8f4..c88bb560d 100644
  	bfqd->queue = q;
  
  	INIT_LIST_HEAD(&bfqd->dispatch);
-@@ -7182,6 +7101,27 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
+@@ -7182,8 +7102,31 @@ static int bfq_init_queue(struct request_queue *q, struct elevator_type *e)
  		goto out_free;
  	bfq_init_root_group(bfqd->root_group, bfqd);
  	bfq_init_entity(&bfqd->oom_bfqq.entity, bfqd->root_group);
@@ -547,8 +555,12 @@ index bf5acd8f4..c88bb560d 100644
 +	bfqd->oom_bfqq.entity.prio_changed = 1;
  
  	wbt_disable_default(q);
++	blk_stat_enable_accounting(q);
++
  	return 0;
-@@ -7452,6 +7392,7 @@ MODULE_ALIAS("bfq-iosched");
+ 
+ out_free:
+@@ -7452,6 +7395,7 @@ MODULE_ALIAS("bfq-iosched");
  static int __init bfq_init(void)
  {
  	int ret;
@@ -556,7 +568,7 @@ index bf5acd8f4..c88bb560d 100644
  
  #ifdef CONFIG_BFQ_GROUP_IOSCHED
  	ret = blkcg_policy_register(&blkcg_policy_bfq);
-@@ -7483,6 +7424,11 @@ static int __init bfq_init(void)
+@@ -7483,6 +7427,11 @@ static int __init bfq_init(void)
  	if (ret)
  		goto slab_kill;
  
@@ -704,7 +716,7 @@ index 9af8599ab..f37d943db 100644
  /* --------------- end of interface of B-WF2Q+ ---------------- */
  
 diff --git a/block/bfq-wf2q.c b/block/bfq-wf2q.c
-index f8eb34038..3a3908c55 100644
+index f8eb34038..ea9ea0459 100644
 --- a/block/bfq-wf2q.c
 +++ b/block/bfq-wf2q.c
 @@ -218,6 +218,24 @@ static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
@@ -931,7 +943,17 @@ index f8eb34038..3a3908c55 100644
   *
   * If there is no in-service entity for the sched_data st belongs to,
   * then return the entity that will be set in service if:
-@@ -1647,6 +1627,32 @@ void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+@@ -1472,9 +1452,6 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
+ 			break;
+ 	}
+ 
+-	if (!entity)
+-		return NULL;
+-
+ 	return entity;
+ }
+ 
+@@ -1647,6 +1624,32 @@ void bfq_requeue_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
  				    bfqq == bfqd->in_service_queue, expiration);
  }
  
@@ -964,7 +986,7 @@ index f8eb34038..3a3908c55 100644
  /*
   * Called when the bfqq no longer has requests pending, remove it from
   * the service tree. As a special case, it can be invoked during an
-@@ -1668,8 +1674,10 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
+@@ -1668,8 +1671,10 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
  
  	bfq_deactivate_bfqq(bfqd, bfqq, true, expiration);
  
@@ -976,7 +998,7 @@ index f8eb34038..3a3908c55 100644
  }
  
  /*
-@@ -1684,10 +1692,11 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
+@@ -1684,10 +1689,11 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
  	bfq_mark_bfqq_busy(bfqq);
  	bfqd->busy_queues[bfqq->ioprio_class - 1]++;
  
