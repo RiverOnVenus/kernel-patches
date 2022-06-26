@@ -1,6 +1,6 @@
-From ecea4e1e087447715dcef602a79a56c69791657a Mon Sep 17 00:00:00 2001
+From e74d591aa4d6df5b54488dc04c8b581d638b70d8 Mon Sep 17 00:00:00 2001
 From: Piotr Gorski <lucjan.lucjanov@gmail.com>
-Date: Wed, 25 May 2022 09:00:42 +0200
+Date: Sun, 26 Jun 2022 00:12:27 +0200
 Subject: [PATCH] PRJC for 5.18
 
 Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
@@ -23,10 +23,10 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/exit.c                                 |    4 +-
  kernel/locking/rtmutex.c                      |   16 +-
  kernel/sched/Makefile                         |    5 +
- kernel/sched/alt_core.c                       | 7768 +++++++++++++++++
+ kernel/sched/alt_core.c                       | 7750 +++++++++++++++++
  kernel/sched/alt_debug.c                      |   31 +
  kernel/sched/alt_sched.h                      |  645 ++
- kernel/sched/bmq.h                            |  111 +
+ kernel/sched/bmq.h                            |  110 +
  kernel/sched/build_policy.c                   |    8 +-
  kernel/sched/build_utility.c                  |    2 +
  kernel/sched/cpufreq_schedutil.c              |   10 +
@@ -44,7 +44,7 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  kernel/time/hrtimer.c                         |    2 +
  kernel/time/posix-cpu-timers.c                |   10 +-
  kernel/trace/trace_selftest.c                 |    5 +
- 39 files changed, 9096 insertions(+), 22 deletions(-)
+ 39 files changed, 9077 insertions(+), 22 deletions(-)
  create mode 100644 Documentation/scheduler/sched-BMQ.txt
  create mode 100644 kernel/sched/alt_core.c
  create mode 100644 kernel/sched/alt_debug.c
@@ -53,10 +53,10 @@ Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
  create mode 100644 kernel/sched/pds.h
 
 diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
-index 3f1cc5e31..e6f88a167 100644
+index c48937820..1811410e4 100644
 --- a/Documentation/admin-guide/kernel-parameters.txt
 +++ b/Documentation/admin-guide/kernel-parameters.txt
-@@ -5164,6 +5164,12 @@
+@@ -5200,6 +5200,12 @@
  	sa1100ir	[NET]
  			See drivers/net/irda/sa1100_ir.c.
  
@@ -70,7 +70,7 @@ index 3f1cc5e31..e6f88a167 100644
  
  	schedstats=	[KNL,X86] Enable or disable scheduled statistics.
 diff --git a/Documentation/admin-guide/sysctl/kernel.rst b/Documentation/admin-guide/sysctl/kernel.rst
-index 1144ea322..2accee67d 100644
+index e9c18dabc..7c9106a91 100644
 --- a/Documentation/admin-guide/sysctl/kernel.rst
 +++ b/Documentation/admin-guide/sysctl/kernel.rst
 @@ -1517,3 +1517,13 @@ is 10 seconds.
@@ -406,10 +406,10 @@ index 56cffe42a..e020fc572 100644
  #else
  static inline void rebuild_sched_domains_energy(void)
 diff --git a/init/Kconfig b/init/Kconfig
-index ddcbefe53..85616423d 100644
+index fa63cc019..0f097fc6d 100644
 --- a/init/Kconfig
 +++ b/init/Kconfig
-@@ -821,6 +821,7 @@ menu "Scheduler features"
+@@ -826,6 +826,7 @@ menu "Scheduler features"
  config UCLAMP_TASK
  	bool "Enable utilization clamping for RT/FAIR tasks"
  	depends on CPU_FREQ_GOV_SCHEDUTIL
@@ -417,7 +417,7 @@ index ddcbefe53..85616423d 100644
  	help
  	  This feature enables the scheduler to track the clamped utilization
  	  of each CPU based on RUNNABLE tasks scheduled on that CPU.
-@@ -867,6 +868,35 @@ config UCLAMP_BUCKETS_COUNT
+@@ -872,6 +873,35 @@ config UCLAMP_BUCKETS_COUNT
  
  	  If in doubt, use the default value.
  
@@ -453,7 +453,7 @@ index ddcbefe53..85616423d 100644
  endmenu
  
  #
-@@ -911,6 +941,7 @@ config NUMA_BALANCING
+@@ -925,6 +955,7 @@ config NUMA_BALANCING
  	depends on ARCH_SUPPORTS_NUMA_BALANCING
  	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
  	depends on SMP && NUMA && MIGRATION && !PREEMPT_RT
@@ -461,7 +461,7 @@ index ddcbefe53..85616423d 100644
  	help
  	  This option adds support for automatic NUMA aware memory/task placement.
  	  The mechanism is quite primitive and is based on migrating memory when
-@@ -1003,6 +1034,7 @@ config FAIR_GROUP_SCHED
+@@ -1017,6 +1048,7 @@ config FAIR_GROUP_SCHED
  	depends on CGROUP_SCHED
  	default CGROUP_SCHED
  
@@ -469,7 +469,7 @@ index ddcbefe53..85616423d 100644
  config CFS_BANDWIDTH
  	bool "CPU bandwidth provisioning for FAIR_GROUP_SCHED"
  	depends on FAIR_GROUP_SCHED
-@@ -1025,6 +1057,7 @@ config RT_GROUP_SCHED
+@@ -1039,6 +1071,7 @@ config RT_GROUP_SCHED
  	  realtime bandwidth for them.
  	  See Documentation/scheduler/sched-rt-group.rst for more information.
  
@@ -477,7 +477,7 @@ index ddcbefe53..85616423d 100644
  endif #CGROUP_SCHED
  
  config UCLAMP_TASK_GROUP
-@@ -1268,6 +1301,7 @@ config CHECKPOINT_RESTORE
+@@ -1282,6 +1315,7 @@ config CHECKPOINT_RESTORE
  
  config SCHED_AUTOGROUP
  	bool "Automatic process group scheduling"
@@ -686,10 +686,10 @@ index 976092b7b..31d587c16 100644
  obj-y += build_utility.o
 diff --git a/kernel/sched/alt_core.c b/kernel/sched/alt_core.c
 new file mode 100644
-index 000000000..189332cd6
+index 000000000..b8e67d568
 --- /dev/null
 +++ b/kernel/sched/alt_core.c
-@@ -0,0 +1,7768 @@
+@@ -0,0 +1,7750 @@
 +/*
 + *  kernel/sched/alt_core.c
 + *
@@ -759,7 +759,7 @@ index 000000000..189332cd6
 +#define sched_feat(x)	(0)
 +#endif /* CONFIG_SCHED_DEBUG */
 +
-+#define ALT_SCHED_VERSION "v5.18-r1"
++#define ALT_SCHED_VERSION "v5.18-r2"
 +
 +/* rt_prio(prio) defined in include/linux/sched/rt.h */
 +#define rt_task(p)		rt_prio((p)->prio)
@@ -839,14 +839,14 @@ index 000000000..189332cd6
 +#ifdef CONFIG_SCHED_SMT
 +static cpumask_t sched_sg_idle_mask ____cacheline_aligned_in_smp;
 +#endif
-+static cpumask_t sched_rq_watermark[SCHED_BITS] ____cacheline_aligned_in_smp;
++static cpumask_t sched_rq_watermark[SCHED_QUEUE_BITS] ____cacheline_aligned_in_smp;
 +
 +/* sched_queue related functions */
 +static inline void sched_queue_init(struct sched_queue *q)
 +{
 +	int i;
 +
-+	bitmap_zero(q->bitmap, SCHED_BITS);
++	bitmap_zero(q->bitmap, SCHED_QUEUE_BITS);
 +	for(i = 0; i < SCHED_BITS; i++)
 +		INIT_LIST_HEAD(&q->heads[i]);
 +}
@@ -878,7 +878,7 @@ index 000000000..189332cd6
 +	cpu = cpu_of(rq);
 +	if (watermark < last_wm) {
 +		for (i = last_wm; i > watermark; i--)
-+			cpumask_clear_cpu(cpu, sched_rq_watermark + SCHED_BITS - 1 - i);
++			cpumask_clear_cpu(cpu, sched_rq_watermark + SCHED_QUEUE_BITS - i);
 +#ifdef CONFIG_SCHED_SMT
 +		if (static_branch_likely(&sched_smt_present) &&
 +		    IDLE_TASK_SCHED_PRIO == last_wm)
@@ -889,7 +889,7 @@ index 000000000..189332cd6
 +	}
 +	/* last_wm < watermark */
 +	for (i = watermark; i > last_wm; i--)
-+		cpumask_set_cpu(cpu, sched_rq_watermark + SCHED_BITS - 1 - i);
++		cpumask_set_cpu(cpu, sched_rq_watermark + SCHED_QUEUE_BITS - i);
 +#ifdef CONFIG_SCHED_SMT
 +	if (static_branch_likely(&sched_smt_present) &&
 +	    IDLE_TASK_SCHED_PRIO == watermark) {
@@ -2597,7 +2597,7 @@ index 000000000..189332cd6
 +#endif
 +	    cpumask_and(&tmp, &chk_mask, sched_rq_watermark) ||
 +	    cpumask_and(&tmp, &chk_mask,
-+			sched_rq_watermark + SCHED_BITS - task_sched_prio(p)))
++			sched_rq_watermark + SCHED_QUEUE_BITS - 1 - task_sched_prio(p)))
 +		return best_mask_cpu(task_cpu(p), &tmp);
 +
 +	return best_mask_cpu(task_cpu(p), &chk_mask);
@@ -4388,24 +4388,6 @@ index 000000000..189332cd6
 + */
 +void sched_exec(void)
 +{
-+	struct task_struct *p = current;
-+	unsigned long flags;
-+	int dest_cpu;
-+
-+	raw_spin_lock_irqsave(&p->pi_lock, flags);
-+	dest_cpu = cpumask_any(p->cpus_ptr);
-+	if (dest_cpu == smp_processor_id())
-+		goto unlock;
-+
-+	if (likely(cpu_active(dest_cpu))) {
-+		struct migration_arg arg = { p, dest_cpu };
-+
-+		raw_spin_unlock_irqrestore(&p->pi_lock, flags);
-+		stop_one_cpu(task_cpu(p), migration_cpu_stop, &arg);
-+		return;
-+	}
-+unlock:
-+	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 +}
 +
 +#endif
@@ -4573,7 +4555,7 @@ index 000000000..189332cd6
 +}
 +
 +#ifdef CONFIG_SCHED_SMT
-+static inline int active_load_balance_cpu_stop(void *data)
++static inline int sg_balance_cpu_stop(void *data)
 +{
 +	struct rq *rq = this_rq();
 +	struct task_struct *p = data;
@@ -4624,15 +4606,15 @@ index 000000000..189332cd6
 +	raw_spin_unlock_irqrestore(&rq->lock, flags);
 +
 +	if (res)
-+		stop_one_cpu_nowait(cpu, active_load_balance_cpu_stop,
-+				    curr, &rq->active_balance_work);
++		stop_one_cpu_nowait(cpu, sg_balance_cpu_stop, curr,
++				    &rq->active_balance_work);
 +	return res;
 +}
 +
 +/*
-+ * sg_balance_check - slibing group balance check for run queue @rq
++ * sg_balance - slibing group balance check for run queue @rq
 + */
-+static inline void sg_balance_check(struct rq *rq)
++static inline void sg_balance(struct rq *rq)
 +{
 +	cpumask_t chk;
 +	int cpu = cpu_of(rq);
@@ -5297,7 +5279,7 @@ index 000000000..189332cd6
 +	}
 +
 +#ifdef CONFIG_SCHED_SMT
-+	sg_balance_check(rq);
++	sg_balance(rq);
 +#endif
 +}
 +
@@ -7938,7 +7920,7 @@ index 000000000..189332cd6
 +	wait_bit_init();
 +
 +#ifdef CONFIG_SMP
-+	for (i = 0; i < SCHED_BITS; i++)
++	for (i = 0; i < SCHED_QUEUE_BITS; i++)
 +		cpumask_copy(sched_rq_watermark + i, cpu_present_mask);
 +#endif
 +
@@ -9148,10 +9130,10 @@ index 000000000..611424bbf
 +#endif /* ALT_SCHED_H */
 diff --git a/kernel/sched/bmq.h b/kernel/sched/bmq.h
 new file mode 100644
-index 000000000..bf7ac80ec
+index 000000000..66b77291b
 --- /dev/null
 +++ b/kernel/sched/bmq.h
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,110 @@
 +#define ALT_SCHED_VERSION_MSG "sched/bmq: BMQ CPU Scheduler "ALT_SCHED_VERSION" by Alfred Chen.\n"
 +
 +/*
@@ -9239,8 +9221,7 @@ index 000000000..bf7ac80ec
 +
 +static void sched_task_fork(struct task_struct *p, struct rq *rq)
 +{
-+	p->boost_prio = (p->boost_prio < 0) ?
-+		p->boost_prio + MAX_PRIORITY_ADJ : MAX_PRIORITY_ADJ;
++	p->boost_prio = MAX_PRIORITY_ADJ;
 +}
 +
 +static inline void do_sched_yield_type_1(struct task_struct *p, struct rq *rq)
@@ -9647,7 +9628,7 @@ index 0f3107682..bd38bf738 100644
   * thermal:
   *
 diff --git a/kernel/sched/pelt.h b/kernel/sched/pelt.h
-index c336f5f48..5865f1471 100644
+index 4ff2ed4f8..226eeed61 100644
 --- a/kernel/sched/pelt.h
 +++ b/kernel/sched/pelt.h
 @@ -1,13 +1,15 @@
@@ -9696,7 +9677,7 @@ index c336f5f48..5865f1471 100644
  static inline int
  update_thermal_load_avg(u64 now, struct rq *rq, u64 capacity)
 diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
-index 8dccb34eb..bb3598e0b 100644
+index 84bba67c9..b0d50dc11 100644
 --- a/kernel/sched/sched.h
 +++ b/kernel/sched/sched.h
 @@ -5,6 +5,10 @@
@@ -9710,7 +9691,7 @@ index 8dccb34eb..bb3598e0b 100644
  #include <linux/sched/affinity.h>
  #include <linux/sched/autogroup.h>
  #include <linux/sched/cpufreq.h>
-@@ -3087,4 +3091,9 @@ extern int sched_dynamic_mode(const char *str);
+@@ -3112,4 +3116,9 @@ extern int sched_dynamic_mode(const char *str);
  extern void sched_dynamic_update(int mode);
  #endif
  
@@ -9968,10 +9949,10 @@ index 0a9719398..e32235cdc 100644
  	return false;
  }
 diff --git a/kernel/trace/trace_selftest.c b/kernel/trace/trace_selftest.c
-index abcadbe93..d4c778b0a 100644
+index a2d301f58..2ccdede85 100644
 --- a/kernel/trace/trace_selftest.c
 +++ b/kernel/trace/trace_selftest.c
-@@ -1140,10 +1140,15 @@ static int trace_wakeup_test_thread(void *data)
+@@ -1143,10 +1143,15 @@ static int trace_wakeup_test_thread(void *data)
  {
  	/* Make this a -deadline thread */
  	static const struct sched_attr attr = {
@@ -9988,5 +9969,5 @@ index abcadbe93..d4c778b0a 100644
  	struct wakeup_test_data *x = data;
  
 -- 
-2.36.1.74.g277cf0bc36
+2.37.0.rc0.15.g3b9a5a33c2
 
